@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎓 Teacher Mode — ML Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --card: #1a1d27;
+  --card2: #21243a;
+  --accent: #6c63ff;
+  --accent2: #f7931a;
+  --green: #00d4aa;
+  --red: #ff6b6b;
+  --yellow: #ffd700;
+  --text: #e8eaf6;
+  --muted: #8892b0;
+  --border: #2d3154;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; }
+
+/* NAV */
+nav {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 14px 32px; display: flex; align-items: center;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100;
+}
+.nav-logo { font-size: 1.2rem; font-weight: 700; }
+.nav-logo span { background: linear-gradient(135deg,var(--accent),#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.back-btn {
+  background: var(--card2); border: 1px solid var(--border); color: var(--text);
+  padding: 8px 20px; border-radius: 20px; font-size: .85rem;
+  cursor: pointer; text-decoration: none; font-weight: 600; transition: border-color .2s;
+}
+.back-btn:hover { border-color: var(--accent); }
+
+/* HERO */
+.hero {
+  text-align: center; padding: 52px 20px 36px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(108,99,255,.15) 0%, transparent 70%);
+}
+.hero h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 10px; }
+.hero h1 span { background: linear-gradient(135deg,var(--accent),#a78bfa,var(--green)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.hero p { color: var(--muted); font-size: 1rem; }
+
+/* TAB NAV */
+.tab-bar {
+  display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
+  padding: 0 20px 0; margin-top: 28px;
+}
+.tab-btn {
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--muted); padding: 9px 20px; border-radius: 24px;
+  font-size: .85rem; cursor: pointer; font-weight: 600; transition: all .2s;
+}
+.tab-btn.active { background: linear-gradient(135deg,var(--accent),#a78bfa); border-color: transparent; color: #fff; }
+.tab-btn:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+
+/* MAIN */
+.main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
+
+.tab-section { display: none; }
+.tab-section.active { display: block; }
+
+/* CARDS */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px; margin-bottom: 24px;
+}
+.card h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+
+/* STAT GRID */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--card2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 20px; text-align: center; transition: border-color .2s;
+}
+.stat-card:hover { border-color: var(--accent); }
+.stat-card .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 6px; }
+.stat-card .value { font-size: 1.8rem; font-weight: 800; }
+.stat-card .sub { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+.rf-color { background: linear-gradient(135deg,var(--accent),#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.lr-color { background: linear-gradient(135deg,var(--accent2),var(--yellow)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+/* COMPARISON TABLE */
+.cmp-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.cmp-table th { background: var(--card2); padding: 12px 16px; text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.cmp-table td { padding: 14px 16px; border-top: 1px solid var(--border); }
+.cmp-table tr:hover td { background: var(--card2); }
+.winner-badge {
+  display: inline-block; background: rgba(0,212,170,.15); border: 1px solid rgba(0,212,170,.4);
+  color: var(--green); border-radius: 12px; padding: 2px 10px; font-size: .7rem; font-weight: 700; margin-left: 8px;
+}
+.rf-badge { background: rgba(108,99,255,.15); border-color: rgba(108,99,255,.4); color: #a78bfa; }
+.lr-badge { background: rgba(247,147,26,.15); border-color: rgba(247,147,26,.4); color: var(--accent2); }
+
+/* CHART CONTAINER */
+.chart-wrap { position: relative; height: 320px; }
+.chart-wrap-lg { position: relative; height: 380px; }
+
+/* PIPELINE STEPS */
+.step-list { display: flex; flex-direction: column; gap: 12px; }
+.step-item {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+}
+.step-num {
+  min-width: 28px; height: 28px; background: linear-gradient(135deg,var(--accent),#a78bfa);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 700; color: #fff;
+}
+.step-item h4 { font-size: .9rem; font-weight: 700; margin-bottom: 3px; }
+.step-item p { font-size: .82rem; color: var(--muted); }
+
+/* CODE BLOCK */
+pre {
+  background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
+  padding: 20px; overflow-x: auto; font-size: .8rem; line-height: 1.65;
+  color: #c9d1d9; font-family: 'Cascadia Code', 'Fira Code', monospace;
+}
+.kw { color: #ff79c6; } .fn { color: #50fa7b; } .cm { color: #6272a4; } .st { color: #f1fa8c; } .num { color: #bd93f9; }
+
+/* COEF TABLE */
+.coef-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.coef-label { min-width: 120px; font-size: .82rem; color: var(--muted); }
+.coef-bar-wrap { flex: 1; background: var(--card2); border-radius: 4px; height: 10px; overflow: hidden; }
+.coef-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg,var(--accent2),var(--yellow)); }
+.coef-val { min-width: 50px; text-align: right; font-size: .8rem; font-weight: 600; }
+
+/* GRID 2 */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media(max-width:680px){ .g2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">🏠 <span>HousePriceAI</span> — Teacher Mode</div>
+  <a href="/" class="back-btn">← Back to Predictor</a>
+</nav>
+
+<div class="hero">
+  <h1>🎓 <span>ML Pipeline</span> Dashboard</h1>
+  <p>Full walkthrough: data cleaning → feature engineering → model training → comparison</p>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('overview')">📊 Overview</button>
+  <button class="tab-btn" onclick="showTab('comparison')">⚖️ Model Comparison</button>
+  <button class="tab-btn" onclick="showTab('features')">🔍 Features</button>
+  <button class="tab-btn" onclick="showTab('pipeline')">🛠️ Pipeline</button>
+  <button class="tab-btn" onclick="showTab('code')">💻 Code</button>
+</div>
+
+<div class="main">
+
+  <!-- ═══════════════ OVERVIEW ═══════════════ -->
+  <div class="tab-section active" id="tab-overview">
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="label">Dataset Size</div>
+        <div class="value" style="color:var(--green)">{{ metrics.raw_shape[0] }}</div>
+        <div class="sub">rows × {{ metrics.raw_shape[1] }} columns</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">🌲 RF Accuracy (R²)</div>
+        <div class="value rf-color">{{ metrics.rf.accuracy }}%</div>
+        <div class="sub">Random Forest</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">📈 LR Accuracy (R²)</div>
+        <div class="value lr-color">{{ metrics.lr.accuracy }}%</div>
+        <div class="sub">Linear Regression</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">RF Mean Abs Error</div>
+        <div class="value" style="color:var(--red)">${{ "{:,.0f}".format(metrics.rf.mae) }}</div>
+        <div class="sub">average prediction error</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">LR Mean Abs Error</div>
+        <div class="value" style="color:var(--accent2)">${{ "{:,.0f}".format(metrics.lr.mae) }}</div>
+        <div class="sub">average prediction error</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Trees (RF)</div>
+        <div class="value" style="color:#a78bfa">{{ metrics.rf.n_estimators }}</div>
+        <div class="sub">n_estimators</div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <h2>📉 Actual vs Predicted — Random Forest</h2>
+        <div class="chart-wrap"><canvas id="chartRF"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>📉 Actual vs Predicted — Linear Regression</h2>
+        <div class="chart-wrap"><canvas id="chartLR"></canvas></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ COMPARISON ═══════════════ -->
+  <div class="tab-section" id="tab-comparison">
+
+    <div class="card">
+      <h2>⚖️ Head-to-Head Model Comparison</h2>
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>🌲 Random Forest</th>
+            <th>📈 Linear Regression</th>
+            <th>Winner</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Algorithm</strong></td>
+            <td>{{ metrics.rf.algorithm }}</td>
+            <td>{{ metrics.lr.algorithm }}</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><strong>R² Score</strong></td>
+            <td class="rf-color" style="-webkit-text-fill-color:unset;color:#a78bfa">{{ metrics.rf.r2 }}</td>
+            <td style="color:var(--accent2)">{{ metrics.lr.r2 }}</td>
+            <td>
+              {% if metrics.rf.r2 >= metrics.lr.r2 %}
+                <span class="winner-badge rf-badge">🌲 RF</span>
+              {% else %}
+                <span class="winner-badge lr-badge">📈 LR</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Accuracy (%)</strong></td>
+            <td style="color:#a78bfa">{{ metrics.rf.accuracy }}%</td>
+            <td style="color:var(--accent2)">{{ metrics.lr.accuracy }}%</td>
+            <td>
+              {% if metrics.rf.accuracy >= metrics.lr.accuracy %}
+                <span class="winner-badge rf-badge">🌲 RF</span>
+              {% else %}
+                <span class="winner-badge lr-badge">📈 LR</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td><strong>MAE ($)</strong></td>
+            <td style="color:#a78bfa">${{ "{:,.0f}".format(metrics.rf.mae) }}</td>
+            <td style="color:var(--accent2)">${{ "{:,.0f}".format(metrics.lr.mae) }}</td>
+            <td>
+              {% if metrics.rf.mae <= metrics.lr.mae %}
+                <span class="winner-badge rf-badge">🌲 RF</span>
+              {% else %}
+                <span class="winner-badge lr-badge">📈 LR</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td><strong>RMSE ($)</strong></td>
+            <td style="color:#a78bfa">${{ "{:,.0f}".format(metrics.rf.rmse) }}</td>
+            <td style="color:var(--accent2)">${{ "{:,.0f}".format(metrics.lr.rmse) }}</td>
+            <td>
+              {% if metrics.rf.rmse <= metrics.lr.rmse %}
+                <span class="winner-badge rf-badge">🌲 RF</span>
+              {% else %}
+                <span class="winner-badge lr-badge">📈 LR</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td><strong>CV Mean R² (5-fold)</strong></td>
+            <td style="color:#a78bfa">{{ metrics.rf.cv_mean }}%</td>
+            <td style="color:var(--accent2)">{{ metrics.lr.cv_mean }}%</td>
+            <td>
+              {% if metrics.rf.cv_mean >= metrics.lr.cv_mean %}
+                <span class="winner-badge rf-badge">🌲 RF</span>
+              {% else %}
+                <span class="winner-badge lr-badge">📈 LR</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td><strong>CV Std Dev</strong></td>
+            <td style="color:#a78bfa">{{ metrics.rf.cv_std }}%</td>
+            <td style="color:var(--accent2)">{{ metrics.lr.cv_std }}%</td>
+            <td>
+              {% if metrics.rf.cv_std <= metrics.lr.cv_std %}
+                <span class="winner-badge rf-badge">🌲 RF <small>(stable)</small></span>
+              {% else %}
+                <span class="winner-badge lr-badge">📈 LR <small>(stable)</small></span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Interpretability</strong></td>
+            <td style="color:var(--muted)">Low (black box)</td>
+            <td style="color:var(--green)">High (coefficients)</td>
+            <td><span class="winner-badge" style="border-color:rgba(0,212,170,.4);color:var(--green);background:rgba(0,212,170,.1)">📈 LR</span></td>
+          </tr>
+          <tr>
+            <td><strong>Training Speed</strong></td>
+            <td style="color:var(--muted)">Slower</td>
+            <td style="color:var(--green)">Fast</td>
+            <td><span class="winner-badge" style="border-color:rgba(0,212,170,.4);color:var(--green);background:rgba(0,212,170,.1)">📈 LR</span></td>
+          </tr>
+          <tr>
+            <td><strong>Handles Non-linearity</strong></td>
+            <td style="color:var(--green)">Yes ✓</td>
+            <td style="color:var(--red)">No ✗</td>
+            <td><span class="winner-badge rf-badge">🌲 RF</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>📊 Metric Comparison Chart</h2>
+      <div class="chart-wrap"><canvas id="chartCmp"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>🔁 Cross-Validation Scores (5-Fold)</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div style="text-align:center;background:var(--card2);border-radius:12px;padding:24px;border:1px solid rgba(108,99,255,.3)">
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">🌲 RANDOM FOREST</div>
+          <div style="font-size:2rem;font-weight:800;color:#a78bfa">{{ metrics.rf.cv_mean }}%</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:4px">±{{ metrics.rf.cv_std }}% std dev</div>
+        </div>
+        <div style="text-align:center;background:var(--card2);border-radius:12px;padding:24px;border:1px solid rgba(247,147,26,.3)">
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">📈 LINEAR REGRESSION</div>
+          <div style="font-size:2rem;font-weight:800;color:var(--accent2)">{{ metrics.lr.cv_mean }}%</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:4px">±{{ metrics.lr.cv_std }}% std dev</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ FEATURES ═══════════════ -->
+  <div class="tab-section" id="tab-features">
+
+    <div class="g2">
+      <div class="card">
+        <h2>🌲 RF Feature Importance</h2>
+        <div class="chart-wrap"><canvas id="chartFeatRF"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>📈 LR Coefficient Importance</h2>
+        <div class="chart-wrap"><canvas id="chartFeatLR"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🌡️ Correlation with Sale Price</h2>
+      <div class="chart-wrap"><canvas id="chartCorr"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>📈 Linear Regression Raw Coefficients</h2>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px">After StandardScaler — these show directional impact on price per unit of normalized feature</p>
+      {% for feat, val in metrics.lr.raw_coefficients.items() %}
+      <div class="coef-row">
+        <div class="coef-label">{{ feat }}</div>
+        <div class="coef-bar-wrap">
+          <div class="coef-bar" style="width:{{ [((val / 80000) * 100)|abs, 100]|min }}%;{% if val < 0 %}background:linear-gradient(90deg,var(--red),#ff9999);margin-left:auto;{% endif %}"></div>
+        </div>
+        <div class="coef-val" style="color:{% if val >= 0 %}var(--green){% else %}var(--red){% endif %}">
+          {{ "{:+,.0f}".format(val) }}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ PIPELINE ═══════════════ -->
+  <div class="tab-section" id="tab-pipeline">
+
+    <div class="card">
+      <h2>🧹 Data Cleaning Steps</h2>
+      <div class="step-list">
+        {% for i, step in enumerate(metrics.cleaning_steps) %}
+        <div class="step-item">
+          <div class="step-num">{{ i+1 }}</div>
+          <div><h4>{{ step.step }}</h4><p>{{ step.detail }}</p></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ Feature Engineering</h2>
+      <div class="step-list">
+        {% for i, step in enumerate(metrics.feature_steps) %}
+        <div class="step-item">
+          <div class="step-num" style="background:linear-gradient(135deg,var(--green),#00a880)">{{ i+1 }}</div>
+          <div><h4>{{ step.step }}</h4><p>{{ step.detail }}</p></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🤖 Model Architecture</h2>
+      <div class="g2">
+        <div style="background:var(--card2);border:1px solid rgba(108,99,255,.3);border-radius:12px;padding:20px">
+          <h3 style="color:#a78bfa;margin-bottom:12px">🌲 Random Forest</h3>
+          <div class="step-list">
+            <div class="step-item"><div class="step-num">1</div><div><h4>Bootstrap sampling</h4><p>Each tree trained on random subset of data</p></div></div>
+            <div class="step-item"><div class="step-num">2</div><div><h4>Random feature selection</h4><p>At each split, only √n features considered</p></div></div>
+            <div class="step-item"><div class="step-num">3</div><div><h4>Ensemble voting</h4><p>200 trees average their predictions</p></div></div>
+          </div>
+        </div>
+        <div style="background:var(--card2);border:1px solid rgba(247,147,26,.3);border-radius:12px;padding:20px">
+          <h3 style="color:var(--accent2);margin-bottom:12px">📈 Linear Regression</h3>
+          <div class="step-list">
+            <div class="step-item"><div class="step-num">1</div><div><h4>StandardScaler</h4><p>Features normalized to mean=0, std=1</p></div></div>
+            <div class="step-item"><div class="step-num">2</div><div><h4>Ordinary Least Squares</h4><p>Minimizes sum of squared residuals</p></div></div>
+            <div class="step-item"><div class="step-num">3</div><div><h4>Linear formula</h4><p>ŷ = β₀ + β₁x₁ + β₂x₂ + ... + βₙxₙ</p></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ CODE ═══════════════ -->
+  <div class="tab-section" id="tab-code">
+
+    <div class="card">
+      <h2>💻 Training Both Models</h2>
+<pre><span class="kw">from</span> sklearn.ensemble <span class="kw">import</span> RandomForestRegressor
+<span class="kw">from</span> sklearn.linear_model <span class="kw">import</span> LinearRegression
+<span class="kw">from</span> sklearn.preprocessing <span class="kw">import</span> StandardScaler
+<span class="kw">from</span> sklearn.model_selection <span class="kw">import</span> train_test_split, cross_val_score
+<span class="kw">from</span> sklearn.metrics <span class="kw">import</span> r2_score, mean_absolute_error
+
+<span class="cm"># --- Split ---</span>
+X_train, X_test, y_train, y_test = <span class="fn">train_test_split</span>(
+    X, y, test_size=<span class="num">0.2</span>, random_state=<span class="num">42</span>
+)
+
+<span class="cm"># --- Random Forest ---</span>
+rf = <span class="fn">RandomForestRegressor</span>(n_estimators=<span class="num">200</span>, max_depth=<span class="num">15</span>, random_state=<span class="num">42</span>)
+rf.<span class="fn">fit</span>(X_train, y_train)
+
+<span class="cm"># --- Linear Regression (with scaling) ---</span>
+scaler = <span class="fn">StandardScaler</span>()
+X_train_sc = scaler.<span class="fn">fit_transform</span>(X_train)
+X_test_sc  = scaler.<span class="fn">transform</span>(X_test)
+
+lr = <span class="fn">LinearRegression</span>()
+lr.<span class="fn">fit</span>(X_train_sc, y_train)
+
+<span class="cm"># --- Evaluate ---</span>
+<span class="kw">def</span> <span class="fn">evaluate</span>(model, X_tr, X_te, y_tr, y_te):
+    pred = model.<span class="fn">predict</span>(X_te)
+    <span class="kw">return</span> {
+        <span class="st">"r2"</span>  : <span class="fn">r2_score</span>(y_te, pred),
+        <span class="st">"mae"</span> : <span class="fn">mean_absolute_error</span>(y_te, pred),
+        <span class="st">"cv"</span>  : <span class="fn">cross_val_score</span>(model, X_tr, y_tr, cv=<span class="num">5</span>, scoring=<span class="st">'r2'</span>).<span class="fn">mean</span>()
+    }
+
+rf_score = <span class="fn">evaluate</span>(rf, X_train, X_test, y_train, y_test)
+lr_score = <span class="fn">evaluate</span>(lr, X_train_sc, X_test_sc, y_train, y_test)</pre>
+    </div>
+
+    <div class="card">
+      <h2>💻 Feature Engineering</h2>
+<pre><span class="cm"># Engineered features</span>
+df[<span class="st">'HouseAge'</span>] = <span class="num">2024</span> - df[<span class="st">'YearBuilt'</span>]
+df[<span class="st">'RemodAge'</span>] = <span class="num">2024</span> - df[<span class="st">'YearRemodAdd'</span>]
+df[<span class="st">'TotalSF'</span>]  = df[<span class="st">'TotalBsmtSF'</span>] + df[<span class="st">'1stFlrSF'</span>] + df[<span class="st">'2ndFlrSF'</span>]
+df[<span class="st">'TotalBath'</span>]= df[<span class="st">'FullBath'</span>] + <span class="num">0.5</span>*df[<span class="st">'HalfBath'</span>] + \
+               df[<span class="st">'BsmtFullBath'</span>] + <span class="num">0.5</span>*df[<span class="st">'BsmtHalfBath'</span>]
+
+top_features = [
+    <span class="st">'OverallQual'</span>, <span class="st">'GrLivArea'</span>, <span class="st">'TotalSF'</span>, <span class="st">'GarageCars'</span>,
+    <span class="st">'TotalBsmtSF'</span>, <span class="st">'HouseAge'</span>, <span class="st">'TotalBath'</span>, <span class="st">'LotArea'</span>,
+    <span class="st">'YearBuilt'</span>, <span class="st">'RemodAge'</span>
+]</pre>
+    </div>
+
+  </div>
+
+</div><!-- /main -->
+
+<script>
+const M = {{ metrics | tojson }};
+const rfColor  = 'rgba(108,99,255,0.85)';
+const lrColor  = 'rgba(247,147,26,0.85)';
+const rfBorder = '#a78bfa';
+const lrBorder = '#ffd700';
+const gridColor = 'rgba(255,255,255,0.06)';
+const textColor = '#8892b0';
+
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: textColor } } },
+  scales: {
+    x: { ticks: { color: textColor }, grid: { color: gridColor } },
+    y: { ticks: { color: textColor }, grid: { color: gridColor } }
+  }
+};
+
+// ─── Actual vs Predicted — RF
+new Chart(document.getElementById('chartRF'), {
+  type: 'scatter',
+  data: {
+    datasets: [{
+      label: 'RF Predicted vs Actual',
+      data: M.actual_sample.map((a,i) => ({x: a, y: M.rf.pred_sample[i]})),
+      backgroundColor: rfColor, pointRadius: 6,
+    }, {
+      label: 'Perfect Prediction',
+      data: [{x:50000,y:50000},{x:500000,y:500000}],
+      type: 'line', borderColor: 'rgba(255,255,255,0.2)', borderDash: [4,4], pointRadius: 0,
+    }]
+  },
+  options: {
+    ...baseOpts,
+    plugins: { ...baseOpts.plugins, tooltip: { callbacks: { label: ctx => `Actual: $${ctx.parsed.x.toLocaleString()} | Pred: $${ctx.parsed.y.toLocaleString()}` } } }
+  }
+});
+
+// ─── Actual vs Predicted — LR
+new Chart(document.getElementById('chartLR'), {
+  type: 'scatter',
+  data: {
+    datasets: [{
+      label: 'LR Predicted vs Actual',
+      data: M.actual_sample.map((a,i) => ({x: a, y: M.lr.pred_sample[i]})),
+      backgroundColor: lrColor, pointRadius: 6,
+    }, {
+      label: 'Perfect Prediction',
+      data: [{x:50000,y:50000},{x:500000,y:500000}],
+      type: 'line', borderColor: 'rgba(255,255,255,0.2)', borderDash: [4,4], pointRadius: 0,
+    }]
+  },
+  options: {
+    ...baseOpts,
+    plugins: { ...baseOpts.plugins, tooltip: { callbacks: { label: ctx => `Actual: $${ctx.parsed.x.toLocaleString()} | Pred: $${ctx.parsed.y.toLocaleString()}` } } }
+  }
+});
+
+// ─── Comparison Bar Chart
+new Chart(document.getElementById('chartCmp'), {
+  type: 'bar',
+  data: {
+    labels: ['R² Score (%)', 'CV Mean R² (%)'],
+    datasets: [
+      { label: '🌲 Random Forest', data: [M.rf.accuracy, M.rf.cv_mean], backgroundColor: rfColor, borderColor: rfBorder, borderWidth: 1 },
+      { label: '📈 Linear Regression', data: [M.lr.accuracy, M.lr.cv_mean], backgroundColor: lrColor, borderColor: lrBorder, borderWidth: 1 }
+    ]
+  },
+  options: { ...baseOpts, scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, min: 0, max: 100 } } }
+});
+
+// ─── RF Feature Importance
+const rfFeat = M.rf.feature_importance;
+new Chart(document.getElementById('chartFeatRF'), {
+  type: 'bar',
+  data: {
+    labels: Object.keys(rfFeat),
+    datasets: [{ label: 'Importance (%)', data: Object.values(rfFeat), backgroundColor: rfColor, borderColor: rfBorder, borderWidth: 1 }]
+  },
+  options: { ...baseOpts, indexAxis: 'y' }
+});
+
+// ─── LR Feature Importance (normalized coef)
+const lrFeat = M.lr.feature_importance;
+new Chart(document.getElementById('chartFeatLR'), {
+  type: 'bar',
+  data: {
+    labels: Object.keys(lrFeat),
+    datasets: [{ label: 'Coef Weight (%)', data: Object.values(lrFeat), backgroundColor: lrColor, borderColor: lrBorder, borderWidth: 1 }]
+  },
+  options: { ...baseOpts, indexAxis: 'y' }
+});
+
+// ─── Correlation
+const corr = M.correlation;
+const corrColors = Object.values(corr).map(v => v >= 0 ? 'rgba(0,212,170,0.7)' : 'rgba(255,107,107,0.7)');
+new Chart(document.getElementById('chartCorr'), {
+  type: 'bar',
+  data: {
+    labels: Object.keys(corr),
+    datasets: [{ label: 'Pearson Correlation', data: Object.values(corr), backgroundColor: corrColors, borderWidth: 1 }]
+  },
+  options: { ...baseOpts, scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, min: -1, max: 1 } } }
+});
+
+// ─── Tab switching
+function showTab(name) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
